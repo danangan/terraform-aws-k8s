@@ -11,7 +11,7 @@ terraform {
 
 locals {
   region       = "us-east-1"
-  cluster_name = "platform-cluster-auto"
+  cluster_name = "demo-cluster-auto"
 }
 
 provider "aws" {

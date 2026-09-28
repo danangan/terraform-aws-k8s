@@ -36,7 +36,7 @@ It also creates an EFS file system and its `efs-sc` StorageClass ([`efs.tf`](dem
 cd examples/demo-k8s-cluster-auto
 terraform init
 terraform apply
-aws eks update-kubeconfig --region us-east-1 --name platform-cluster-auto
+aws eks update-kubeconfig --region us-east-1 --name demo-cluster-auto
 kubectl apply -f auto-mode/
 ```
 
