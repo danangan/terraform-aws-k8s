@@ -22,22 +22,8 @@ module "eks" {
   vpc_id     = var.vpc_id
   subnet_ids = var.subnet_ids
 
-  # Auto Mode has its own CoreDNS, kube-proxy, VPC CNI and Pod Identity agent,
-  # so add-ons are only installed on the managed node groups. extra_addons
-  # entries are merged over these defaults. (The EBS CSI driver lives in the
-  # storage sub-module.)
-  addons = var.enable_auto_mode ? null : merge(
-    {
-      coredns                = {}
-      eks-pod-identity-agent = { before_compute = true }
-    },
-    # Cilium replaces both
-    var.enable_cilium ? {} : {
-      kube-proxy = {}
-      vpc-cni    = { before_compute = true }
-    },
-    var.extra_addons,
-  )
+  # Auto Mode has its own CoreDNS, kube-proxy, VPC CNI and Pod Identity agent
+  addons = var.enable_auto_mode ? null : var.addons
 
   # This one flag turns on all of Auto Mode: compute (the built-in node pools),
   # block storage (EBS) and load balancing (ALB/NLB). At least one built-in

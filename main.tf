@@ -1,6 +1,19 @@
 locals {
   # Auto Mode manages networking itself
   enable_cilium = var.enable_cilium && !var.enable_auto_mode
+
+  addons = merge(
+    {
+      coredns                = {}
+      eks-pod-identity-agent = { before_compute = true }
+    },
+    # Cilium replaces both
+    local.enable_cilium ? {} : {
+      kube-proxy = {}
+      vpc-cni    = { before_compute = true }
+    },
+    var.extra_addons,
+  )
 }
 
 module "network" {
@@ -18,7 +31,7 @@ module "eks" {
   cluster_name       = var.cluster_name
   kubernetes_version = var.kubernetes_version
   enable_auto_mode   = var.enable_auto_mode
-  extra_addons       = var.extra_addons
+  addons             = local.addons
 
   vpc_id     = module.network.vpc_id
   subnet_ids = module.network.private_subnets
@@ -34,7 +47,6 @@ module "eks" {
   gpu_node_group_desired_size = var.gpu_node_group_desired_size
   gpu_node_taints             = var.gpu_node_taints
 
-  enable_cilium = local.enable_cilium
   # This is a hack so that the node group creation would wait for the cillium installation
   # Basically creating a dependency between the node group resource and label resource from cillium module
   node_labels = local.enable_cilium ? module.cilium[0].node_labels : {}
@@ -61,14 +73,7 @@ module "storage" {
   cluster_name       = module.eks.cluster_name
   kubernetes_version = var.kubernetes_version
 
-  # The add-on only becomes active once its controller pods are running, so
-  # wait for the node groups (and the Pod Identity agent) to be up
   depends_on = [module.eks]
-}
-
-moved {
-  from = module.eks.aws_iam_role.ebs_csi_driver[0]
-  to   = module.storage[0].aws_iam_role.ebs_csi_driver
 }
 
 module "efs" {
@@ -95,6 +100,8 @@ module "alb_controller" {
   count = var.enable_auto_mode ? 0 : 1
 
   aws_region   = var.aws_region
-  cluster_name = var.cluster_name
+  cluster_name = module.eks.cluster_name
   vpc_id       = module.network.vpc_id
+
+  depends_on = [module.eks]
 }

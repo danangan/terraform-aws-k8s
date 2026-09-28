@@ -2,7 +2,7 @@
 
 An EKS cluster (via `terraform-aws-modules/eks/aws`) with a Graviton (ARM) CPU node group and a GPU node group (tainted `gpu-workload=true:NoSchedule`, so only pods that tolerate it land there). AMI architecture for the CPU group is picked automatically from the instance type.
 
-Installs the `coredns` and `eks-pod-identity-agent` add-ons, plus `kube-proxy` and `vpc-cni` unless `enable_cilium` is set, plus any in `extra_addons`. The EBS CSI driver is in the separate [`storage`](../storage/) sub-module.
+Installs the add-ons in `addons` - by default `coredns`, `kube-proxy`, `vpc-cni` and `eks-pod-identity-agent`. The EBS CSI driver is in the separate [`storage`](../storage/) sub-module.
 
 With `enable_auto_mode = true`, the cluster runs on EKS Auto Mode instead: no node groups or add-ons are created, and EKS launches nodes from its built-in `general-purpose` and `system` node pools. See the root README's "EKS Auto Mode" section.
 
@@ -12,10 +12,9 @@ With `enable_auto_mode = true`, the cluster runs on EKS Auto Mode instead: no no
 |---|---|---|
 | `cluster_name` | Name of the EKS cluster | - |
 | `kubernetes_version` | Kubernetes version | `1.33` |
-| `enable_auto_mode` | Run the cluster on EKS Auto Mode. When `true`, the `cpu_*`, `gpu_*` and `extra_addons` inputs are ignored | `false` |
-| `enable_cilium` | Cilium replaces the VPC CNI and kube-proxy, so their add-ons aren't installed | `false` |
+| `enable_auto_mode` | Run the cluster on EKS Auto Mode. When `true`, the `cpu_*`, `gpu_*` and `addons` inputs are ignored | `false` |
 | `node_labels` | Kubernetes labels added to every node group | `{}` |
-| `extra_addons` | Extra EKS add-ons, keyed by add-on name, merged over the defaults. Entries take the same settings as `addons` in `terraform-aws-modules/eks` | `{}` |
+| `addons` | EKS add-ons, keyed by add-on name. Entries take the same settings as `addons` in `terraform-aws-modules/eks` | `coredns`, `kube-proxy`, `vpc-cni` (before nodes), `eks-pod-identity-agent` (before nodes) |
 | `vpc_id` | ID of the VPC to create the cluster in | - |
 | `subnet_ids` | IDs of the (private) subnets for the cluster and its node groups | - |
 | `cpu_instance_type` | Instance type for the CPU-only node group | `t4g.small` |
