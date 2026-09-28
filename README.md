@@ -9,10 +9,10 @@ This reusable Terraform module handles everything needed to stand up a productio
 
 - A VPC (public + private subnets across multiple AZs, Internet & NAT gateway`)
 - An EKS cluster with a CPU node group and a GPU node group
-- An ECR repository, and a permissions-boundary-scoped IAM deployment role/user for CI/CD
+- An ECR repository
 - The AWS Load Balancer Controller, so `Ingress` resources with `ingressClassName: alb` provision an ALB out of the box
 - The EBS CSI driver, with gp3 as the default StorageClass for PersistentVolumeClaims
-- Optionally, the [EFS CSI driver](#efs-storage) and an EFS file system, for volumes many pods can share
+- Optionally, the [EFS CSI driver](#efs-storage), for volumes many pods can share
 - Optionally, [EKS Auto Mode](#eks-auto-mode) instead of the node groups and controller above, so EKS manages the nodes, ingress and storage itself
 
 This module is published on the public Terraform Registry as [`danangan/k8s/aws`](https://registry.terraform.io/modules/danangan/k8s/aws/latest).
@@ -130,16 +130,6 @@ module "ecr" {
 
   repository_name = "my-cluster-repo"
 }
-
-module "deployment" {
-  source  = "danangan/k8s/aws//modules/deployment"
-  version = "~> 1.0"
-
-  cluster_name          = "my-cluster"
-  cluster_arn           = module.eks.cluster_arn
-  deployment_user_name  = "deployer"
-  ecr_repository_arn    = module.ecr.repository_arn
-}
 ```
 
 In `k8s/main.tf`:
@@ -197,7 +187,7 @@ An entry named after one of the four default add-ons above replaces that add-on'
 
 ## EFS storage
 
-An EBS volume attaches to one node at a time. An [Amazon EFS](https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html) file system can be mounted by many pods at once, across nodes and AZs (`ReadWriteMany`), and grows as you write to it. Set `enable_efs_csi_driver = true` to use one:
+An EBS volume attaches to one node at a time. An [Amazon EFS](https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html) file system can be mounted by many pods at once, across nodes and AZs (`ReadWriteMany`), and grows as you write to it. Set `enable_efs_csi_driver = true` to install the driver for it:
 
 ```hcl
 module "platform" {
@@ -214,11 +204,10 @@ The module then creates the [`efs`](modules/efs/) sub-module's resources, which 
 
 1. An IAM role with `AmazonEFSCSIDriverPolicy`, granted through EKS Pod Identity
 2. The `aws-efs-csi-driver` EKS add-on
-3. An encrypted EFS file system with a mount target in each private subnet, behind a security group that allows NFS (TCP 2049) in from the VPC
 
 It's off by default. It works with or without [EKS Auto Mode](#eks-auto-mode), which doesn't have EFS support built in.
 
-The EFS add-on can't create a StorageClass the way the EBS add-on does, so create one with `kubectl` once the cluster is up. The file system's ID is the module's `efs_file_system_id` output. Pass it through as an output of your own root module (as [`examples/demo-k8s-cluster`](examples/demo-k8s-cluster/main.tf) does), then run this from that module's folder:
+The module doesn't create a file system. Create one with a mount target in each of the cluster's private subnets, behind a security group that allows NFS (TCP 2049) in from the VPC (see the driver's [file system guide](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/docs/efs-create-filesystem.md)). Then create a StorageClass for it with `kubectl`, since the EFS add-on can't create one the way the EBS add-on does:
 
 ```
 kubectl apply -f - <<EOF
@@ -229,7 +218,7 @@ metadata:
 provisioner: efs.csi.aws.com
 parameters:
   provisioningMode: efs-ap
-  fileSystemId: $(terraform output -raw efs_file_system_id)
+  fileSystemId: fs-0123456789abcdef0 # your file system's ID
   directoryPerms: "700"
 EOF
 ```
@@ -250,7 +239,7 @@ spec:
       storage: 5Gi # required by Kubernetes, but EFS doesn't enforce a size
 ```
 
-**Warning:** setting `enable_efs_csi_driver` back to `false` deletes the file system and everything on it. Delete any claims that use `efs-sc` first, while the driver is still there to clean up their access points.
+Before setting `enable_efs_csi_driver` back to `false`, delete any claims that use `efs-sc`, while the driver is still there to clean up their access points.
 
 ## EKS Auto Mode
 

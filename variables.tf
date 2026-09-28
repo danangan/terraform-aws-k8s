@@ -71,7 +71,7 @@ variable "extra_addons" {
 }
 
 variable "enable_efs_csi_driver" {
-  description = "Install the Amazon EFS CSI driver add-on and create an EFS file system for it, for shared ReadWriteMany PersistentVolumes. Works with or without enable_auto_mode. Setting it back to false deletes the file system and everything on it"
+  description = "Install the Amazon EFS CSI driver add-on, for shared ReadWriteMany PersistentVolumes on an EFS file system you create. Works with or without enable_auto_mode"
   type        = bool
   default     = false
 }
@@ -129,12 +129,6 @@ variable "gpu_node_taints" {
       effect = "NO_SCHEDULE"
     }
   }
-}
-
-variable "deployment_user_name" {
-  description = "Name of the IAM user used to assume the deployment role (CI/CD System)"
-  type        = string
-  default     = "ai-app-deploy"
 }
 
 variable "alb_controller_chart_version" {

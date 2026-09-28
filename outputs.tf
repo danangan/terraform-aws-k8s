@@ -18,22 +18,8 @@ output "vpc_id" {
   value       = module.network.vpc_id
 }
 
-output "efs_file_system_id" {
-  description = "ID of the EFS file system for the EFS CSI driver - the fileSystemId of an EFS StorageClass. Null unless enable_efs_csi_driver is true"
-  value       = one(module.efs[*].file_system_id)
-}
-
 output "ecr_repository_url" {
   description = "URL of the app's ECR repository"
   value       = module.ecr.repository_url
 }
 
-output "deployment_role_arn" {
-  description = "ARN of the IAM role a CI/CD system assumes to push to ECR and describe the cluster"
-  value       = module.deployment.deployment_role_arn
-}
-
-output "deployment_user_arn" {
-  description = "ARN of the IAM user a CI/CD system authenticates as to assume deployment_role_arn"
-  value       = module.deployment.deployment_user_arn
-}

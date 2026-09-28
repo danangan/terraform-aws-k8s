@@ -71,4 +71,4 @@ cd ../demo-k8s-cluster   # or ../demo-k8s-cluster-auto
 terraform destroy
 ```
 
-Delete any PersistentVolumeClaims before `terraform destroy`, or their EBS volumes are left behind. The EFS file system is deleted with everything on it.
+Delete any PersistentVolumeClaims before `terraform destroy`, or their EBS volumes are left behind.

@@ -57,17 +57,12 @@ module "platform" {
   gpu_node_group_desired_size = 0
 
   enable_efs_csi_driver = true
-
-  deployment_user_name = "platform-cluster-deployer"
 }
 
 output ecr_repository_url {
   value       = module.platform.ecr_repository_url
 }
 
-output "efs_file_system_id" {
-  value = module.platform.efs_file_system_id
-}
 
 output "cluster_name" {
   value = module.platform.cluster_name

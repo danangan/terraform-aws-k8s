@@ -57,9 +57,6 @@ module "efs" {
   cluster_name       = module.eks.cluster_name
   kubernetes_version = var.kubernetes_version
 
-  vpc_id     = module.network.vpc_id
-  subnet_ids = module.network.private_subnets
-
   depends_on = [module.eks]
 }
 
@@ -67,15 +64,6 @@ module "ecr" {
   source = "./modules/ecr"
 
   repository_name = "${var.cluster_name}-repo"
-}
-
-module "deployment" {
-  source = "./modules/deployment"
-
-  cluster_name         = var.cluster_name
-  cluster_arn          = module.eks.cluster_arn
-  deployment_user_name = var.deployment_user_name
-  ecr_repository_arn   = module.ecr.repository_arn
 }
 
 module "alb_controller" {
