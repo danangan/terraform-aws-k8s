@@ -26,12 +26,18 @@ module "eks" {
   # so add-ons are only installed on the managed node groups. extra_addons
   # entries are merged over these defaults. (The EBS CSI driver lives in the
   # storage sub-module.)
-  addons = var.enable_auto_mode ? null : merge({
-    coredns                = {}
-    kube-proxy             = {}
-    vpc-cni                = { before_compute = true }
-    eks-pod-identity-agent = { before_compute = true }
-  }, var.extra_addons)
+  addons = var.enable_auto_mode ? null : merge(
+    {
+      coredns                = {}
+      eks-pod-identity-agent = { before_compute = true }
+    },
+    # Cilium replaces both
+    var.enable_cilium ? {} : {
+      kube-proxy = {}
+      vpc-cni    = { before_compute = true }
+    },
+    var.extra_addons,
+  )
 
   # This one flag turns on all of Auto Mode: compute (the built-in node pools),
   # block storage (EBS) and load balancing (ALB/NLB). At least one built-in
@@ -56,6 +62,8 @@ module "eks" {
       min_size     = var.cpu_node_group_min_size
       max_size     = var.cpu_node_group_max_size
       desired_size = var.cpu_node_group_desired_size
+
+      labels = var.node_labels
     },
     gpu = {
       ami_type       = "AL2023_x86_64_NVIDIA"
@@ -65,6 +73,7 @@ module "eks" {
       max_size     = var.gpu_node_group_max_size
       desired_size = var.gpu_node_group_desired_size
 
+      labels = var.node_labels
       taints = var.gpu_node_taints
     }
   }

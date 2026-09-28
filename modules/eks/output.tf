@@ -17,3 +17,8 @@ output "cluster_arn" {
   description = "ARN of the EKS cluster"
   value       = module.eks.cluster_arn
 }
+
+output "node_security_group_id" {
+  description = "ID of the security group shared by the node groups' nodes"
+  value       = module.eks.node_security_group_id
+}

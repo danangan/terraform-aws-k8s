@@ -1,10 +1,9 @@
 image:
-  # Set at deploy time (see deploy-app.sh) to the ECR repository URL + tag
-  # just pushed - there's no meaningful default.
   repository: ""
   tag: ""
   pullPolicy: IfNotPresent
 
+# Keep at 1 - the EBS volume attaches to one node at a time
 replicaCount: 1
 
 service:

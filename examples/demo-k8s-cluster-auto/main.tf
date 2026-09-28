@@ -38,6 +38,8 @@ module "platform" {
   # EKS launches and manages the nodes, so there are no cpu_*/gpu_* node group
   # settings here. Apply the manifests in ./auto-mode once the cluster is up.
   enable_auto_mode = true
+
+  enable_efs_csi_driver = true
 }
 
 output "ecr_repository_url" {

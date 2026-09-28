@@ -13,6 +13,7 @@ This reusable Terraform module handles everything needed to stand up a productio
 - The AWS Load Balancer Controller, so `Ingress` resources with `ingressClassName: alb` provision an ALB out of the box
 - The EBS CSI driver, with gp3 as the default StorageClass for PersistentVolumeClaims
 - Optionally, the [EFS CSI driver](#efs-storage), for volumes many pods can share
+- Optionally, [Cilium](#cilium) as the CNI instead of the VPC CNI and kube-proxy
 - Optionally, [EKS Auto Mode](#eks-auto-mode) instead of the node groups and controller above, so EKS manages the nodes, ingress and storage itself
 
 This module is published on the public Terraform Registry as [`danangan/k8s/aws`](https://registry.terraform.io/modules/danangan/k8s/aws/latest).
@@ -27,6 +28,7 @@ Point it at your AWS account and you'll have a cluster ready for your containeri
 - [Deploying pods into the GPU nodes](#deploying-pods-into-the-gpu-nodes)
 - [Add-ons](#add-ons)
 - [EFS storage](#efs-storage)
+- [Cilium](#cilium)
 - [EKS Auto Mode](#eks-auto-mode)
 - [Project structure](#project-structure)
 - [Examples](#examples)
@@ -162,7 +164,7 @@ With `enable_auto_mode = true` there's no GPU node group - apply [`examples/demo
 
 On the managed node groups (the default), the module installs these EKS add-ons:
 
-- `coredns`, `kube-proxy`, `vpc-cni` and `eks-pod-identity-agent`
+- `coredns` and `eks-pod-identity-agent`, plus `kube-proxy` and `vpc-cni` unless [Cilium](#cilium) replaces them
 - `aws-ebs-csi-driver`, through the [`storage`](modules/storage/) sub-module, which follows [AWS's EBS CSI driver guide](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html): an IAM role with `AmazonEBSCSIDriverPolicyV2` through EKS Pod Identity, then the add-on itself. It also creates `ebs-csi-default-sc`, the cluster's default StorageClass, so PersistentVolumeClaims get gp3 EBS volumes. EKS's own `gp2` StorageClass is still there, but isn't the default.
 
 The EFS CSI driver is opt-in - see [EFS storage](#efs-storage).
@@ -183,7 +185,7 @@ module "platform" {
 }
 ```
 
-An entry named after one of the four default add-ons above replaces that add-on's settings entirely - e.g. overriding `vpc-cni` drops its `before_compute = true`, so set it again. `extra_addons` is ignored with `enable_auto_mode = true`.
+An entry named after one of the default add-ons above replaces that add-on's settings entirely - e.g. overriding `vpc-cni` drops its `before_compute = true`, so set it again. `extra_addons` is ignored with `enable_auto_mode = true`.
 
 ## EFS storage
 
@@ -207,7 +209,7 @@ The module then creates the [`efs`](modules/efs/) sub-module's resources, which 
 
 It's off by default. It works with or without [EKS Auto Mode](#eks-auto-mode), which doesn't have EFS support built in.
 
-The module doesn't create a file system. Create one with a mount target in each of the cluster's private subnets, behind a security group that allows NFS (TCP 2049) in from the VPC (see the driver's [file system guide](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/docs/efs-create-filesystem.md)). Then create a StorageClass for it with `kubectl`, since the EFS add-on can't create one the way the EBS add-on does:
+The module doesn't create a file system ([`examples/demo-k8s-cluster/efs.tf`](examples/demo-k8s-cluster/efs.tf) shows one way to). Create one with a mount target in each of the cluster's private subnets, behind a security group that allows NFS (TCP 2049) in from the VPC (see the driver's [file system guide](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/docs/efs-create-filesystem.md)). Then create a StorageClass for it with `kubectl`, since the EFS add-on can't create one the way the EBS add-on does:
 
 ```
 kubectl apply -f - <<EOF
@@ -240,6 +242,10 @@ spec:
 ```
 
 Before setting `enable_efs_csi_driver` back to `false`, delete any claims that use `efs-sc`, while the driver is still there to clean up their access points.
+
+## Cilium
+
+Set `enable_cilium = true` to replace the VPC CNI and kube-proxy with [Cilium](https://docs.cilium.io/en/stable/overview/intro/). Pods still get VPC IPs ([ENI mode](https://docs.cilium.io/en/stable/network/concepts/ipam/eni/)), Services are routed with eBPF instead of iptables, and pod traffic between nodes is encrypted with [WireGuard](https://docs.cilium.io/en/stable/security/network/encryption-wireguard/). Not available with Auto Mode. Only for new clusters - switching one that runs the VPC CNI isn't handled. Details in [`modules/cilium`](modules/cilium/README.md).
 
 ## EKS Auto Mode
 

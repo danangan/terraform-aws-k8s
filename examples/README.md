@@ -2,9 +2,9 @@
 
 | Example | |
 |---|---|
-| [`demo-k8s-cluster/`](demo-k8s-cluster/) | Cluster on managed node groups |
+| [`demo-k8s-cluster/`](demo-k8s-cluster/) | Cluster on managed node groups, with Cilium |
 | [`demo-k8s-cluster-auto/`](demo-k8s-cluster-auto/) | Cluster on [EKS Auto Mode](../README.md#eks-auto-mode) |
-| [`demo-app/`](demo-app/) | FastAPI "hello world" app with a Helm chart, for either cluster |
+| [`demo-app/`](demo-app/) | FastAPI app with a Helm chart, for either cluster. Stores orders on EBS and EFS volumes |
 
 The cluster examples use the local module (`source = "../.."`). In your own project, use `danangan/k8s/aws` from the registry.
 
@@ -28,11 +28,7 @@ terraform apply
 
 The first apply fails - run it again. See [the bootstrap catch](../README.md#the-bootstrap-catch).
 
-This example also sets `enable_efs_csi_driver = true`. To use EFS volumes, create the `efs-sc` StorageClass from this folder as shown in [EFS storage](../README.md#efs-storage), after:
-
-```
-aws eks update-kubeconfig --region us-east-1 --name platform-cluster
-```
+It also creates an EFS file system and its `efs-sc` StorageClass ([`efs.tf`](demo-k8s-cluster/efs.tf)), for the demo app's `/orders/efs` endpoint.
 
 ### EKS Auto Mode (`demo-k8s-cluster-auto`)
 
@@ -61,6 +57,22 @@ cd examples/demo-app
 
 It builds the image, pushes it to the cluster's ECR repo and installs the Helm chart. The app is served on the ALB's DNS name.
 
+### Orders
+
+The app stores orders on two volumes, one JSON file per order:
+
+```
+curl -X POST http://<alb-dns>/orders/ebs -H 'content-type: application/json' -d '{"item":"coffee","quantity":2}'
+curl http://<alb-dns>/orders/ebs
+```
+
+- `/orders/ebs` - on an EBS volume from the cluster's default StorageClass. It attaches to one node at a time, so the app runs a single replica
+- `/orders/efs` - on EFS, shared by every replica
+
+The EFS volume needs the `efs-sc` StorageClass. `demo-k8s-cluster` creates it; on `demo-k8s-cluster-auto`, create a file system and the StorageClass yourself as shown in [EFS storage](../README.md#efs-storage), or the app's pod stays `Pending`.
+
+`./teardown.sh` deletes the EBS volume and the EFS access point along with the app. The EFS files stay on the file system.
+
 ## Tear down
 
 ```
@@ -71,4 +83,4 @@ cd ../demo-k8s-cluster   # or ../demo-k8s-cluster-auto
 terraform destroy
 ```
 
-Delete any PersistentVolumeClaims before `terraform destroy`, or their EBS volumes are left behind.
+Run `./teardown.sh` before `terraform destroy`. It deletes the app's volumes: EBS volumes still claimed at destroy time are left behind, and the EFS file system can't be deleted while it still has access points.

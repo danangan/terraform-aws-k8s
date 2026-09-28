@@ -40,7 +40,7 @@ variable "enable_auto_mode" {
 }
 
 variable "extra_addons" {
-  description = "Extra EKS add-ons to install on the managed node groups, keyed by add-on name, on top of the defaults (coredns, kube-proxy, vpc-cni, eks-pod-identity-agent). Entries take the same settings as terraform-aws-modules/eks's `addons`; a key matching a default add-on replaces its settings. Ignored when enable_auto_mode = true"
+  description = "Extra EKS add-ons to install on the managed node groups, keyed by add-on name, on top of the defaults (coredns, eks-pod-identity-agent, plus kube-proxy and vpc-cni without Cilium). Entries take the same settings as terraform-aws-modules/eks's `addons`; a key matching a default add-on replaces its settings. Ignored when enable_auto_mode = true"
   # Mirrors terraform-aws-modules/eks's `addons` type (minus `name`) - unset
   # fields fall back to that module's defaults
   type = map(object({
@@ -68,6 +68,12 @@ variable "extra_addons" {
   }))
   default  = {}
   nullable = false
+}
+
+variable "enable_cilium" {
+  description = "Replace the VPC CNI and kube-proxy with Cilium (ENI IPAM, eBPF service routing), with WireGuard encryption of pod-to-pod traffic between nodes. Ignored when enable_auto_mode = true"
+  type        = bool
+  default     = false
 }
 
 variable "enable_efs_csi_driver" {

@@ -25,8 +25,20 @@ variable "enable_auto_mode" {
   default     = false
 }
 
+variable "enable_cilium" {
+  description = "Cilium replaces the VPC CNI and kube-proxy, so their add-ons aren't installed"
+  type        = bool
+  default     = false
+}
+
+variable "node_labels" {
+  description = "Kubernetes labels added to every node group"
+  type        = map(string)
+  default     = {}
+}
+
 variable "extra_addons" {
-  description = "Extra EKS add-ons to install on the managed node groups, keyed by add-on name, on top of the defaults (coredns, kube-proxy, vpc-cni, eks-pod-identity-agent). Entries take the same settings as terraform-aws-modules/eks's `addons`; a key matching a default add-on replaces its settings. Ignored when enable_auto_mode = true"
+  description = "Extra EKS add-ons to install on the managed node groups, keyed by add-on name, on top of the defaults (coredns, eks-pod-identity-agent, plus kube-proxy and vpc-cni without Cilium). Entries take the same settings as terraform-aws-modules/eks's `addons`; a key matching a default add-on replaces its settings. Ignored when enable_auto_mode = true"
   # Mirrors terraform-aws-modules/eks's `addons` type (minus `name`) - unset
   # fields fall back to that module's defaults
   type = map(object({

@@ -9,7 +9,7 @@ RUN uv sync --locked --no-install-project --no-dev
 COPY app/ ./app/
 RUN uv sync --locked --no-dev
 
-RUN useradd --create-home appuser && chown -R appuser /app
+RUN useradd --create-home --uid 1000 appuser && chown -R appuser /app
 USER appuser
 
 ENV PATH="/app/.venv/bin:$PATH"

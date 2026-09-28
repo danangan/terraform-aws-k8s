@@ -23,3 +23,8 @@ output "ecr_repository_url" {
   value       = module.ecr.repository_url
 }
 
+
+output "private_subnet_ids" {
+  description = "IDs of the private subnets the nodes run in"
+  value       = module.network.private_subnets
+}

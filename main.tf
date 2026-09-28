@@ -1,3 +1,8 @@
+locals {
+  # Auto Mode manages networking itself
+  enable_cilium = var.enable_cilium && !var.enable_auto_mode
+}
+
 module "network" {
   source = "./modules/network"
 
@@ -28,6 +33,23 @@ module "eks" {
   gpu_node_group_max_size     = var.gpu_node_group_max_size
   gpu_node_group_desired_size = var.gpu_node_group_desired_size
   gpu_node_taints             = var.gpu_node_taints
+
+  enable_cilium = local.enable_cilium
+  # This is a hack so that the node group creation would wait for the cillium installation
+  # Basically creating a dependency between the node group resource and label resource from cillium module
+  node_labels = local.enable_cilium ? module.cilium[0].node_labels : {}
+}
+
+module "cilium" {
+  source = "./modules/cilium"
+
+  count = local.enable_cilium ? 1 : 0
+
+  cluster_name     = module.eks.cluster_name
+  cluster_endpoint = module.eks.cluster_endpoint
+  subnet_ids       = module.network.private_subnets
+
+  node_security_group_id = module.eks.node_security_group_id
 }
 
 module "storage" {

@@ -6,6 +6,9 @@ metadata:
     app: {{ .Release.Name }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  # The old pod has to release the EBS volume before the new one can attach it
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -14,6 +17,8 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      securityContext:
+        fsGroup: 1000 # the image's appuser, so it can write to the EBS volume
       containers:
         - name: {{ .Release.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -30,3 +35,15 @@ spec:
               port: {{ .Values.service.targetPort }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: ebs
+              mountPath: /data/ebs
+            - name: efs
+              mountPath: /data/efs
+      volumes:
+        - name: ebs
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-ebs
+        - name: efs
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-efs

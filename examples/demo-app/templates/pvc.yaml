@@ -1,0 +1,22 @@
+# The cluster's default StorageClass - gp3 EBS on both example clusters
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-ebs
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Needs the efs-sc StorageClass - see the root README's "EFS storage" section
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-efs
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 1Gi # required by Kubernetes, ignored by EFS
