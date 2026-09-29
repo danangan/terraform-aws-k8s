@@ -2,7 +2,7 @@
 
 Installs the AWS Load Balancer Controller (the modern replacement for the legacy "ALB Ingress Controller") via Helm, so `Ingress` resources with `ingressClassName: alb` provision a real ALB. Grants it access via EKS Pod Identity: an IAM policy (copied verbatim from the [controller's own repo](https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json)), a role, and a pod identity association bound to its `aws-load-balancer-controller` service account.
 
-Needs the `helm` provider configured - see the root module's README for the bootstrap catch this implies on a brand new cluster.
+Needs the `helm` provider configured. Apply it after the cluster's nodes exist - the root module does that with `depends_on = [module.eks]`.
 
 Not needed on an EKS Auto Mode cluster, which has its own built-in ALB/NLB controller - the root module skips it when `enable_auto_mode = true`.
 

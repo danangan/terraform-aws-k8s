@@ -1,0 +1,7 @@
+gpuNodePool:
+  instanceType: g4dn.xlarge
+  gpuLimit: 1
+  taints:
+    - key: gpu-workload
+      value: "true"
+      effect: NoSchedule

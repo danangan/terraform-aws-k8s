@@ -34,7 +34,7 @@ variable "kubernetes_version" {
 }
 
 variable "enable_auto_mode" {
-  description = "Run the cluster on EKS Auto Mode: EKS launches and manages the nodes (built-in general-purpose and system node pools) and runs the core add-ons, ALB/NLB controller and EBS CSI driver itself. When true, the cpu_* and gpu_* node group settings are ignored and the AWS Load Balancer Controller isn't installed, so nothing goes through the helm provider"
+  description = "Run the cluster on EKS Auto Mode: EKS launches and manages the nodes (built-in general-purpose and system node pools) and runs the core add-ons, ALB/NLB controller and EBS CSI driver itself. When true, the cpu_* node group settings are ignored, the gpu_* ones configure a GPU node pool instead, and the AWS Load Balancer Controller isn't installed"
   type        = bool
   default     = false
 }

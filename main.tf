@@ -105,3 +105,17 @@ module "alb_controller" {
 
   depends_on = [module.eks]
 }
+
+module "auto_mode" {
+  source = "./modules/auto-mode"
+
+  count = var.enable_auto_mode ? 1 : 0
+
+  # The GPU node group's settings, for the GPU node pool
+  gpu_instance_type = var.gpu_instance_type
+  gpu_limit         = var.gpu_node_group_max_size # one GPU per node on the default g4dn.xlarge
+  gpu_node_taints   = var.gpu_node_taints
+
+  # Auto Mode's NodePool and IngressClassParams types only exist once the cluster does
+  depends_on = [module.eks]
+}

@@ -28,10 +28,19 @@ echo "Logging in to ECR..."
 aws ecr get-login-password --region us-east-1 \
   | ${CONTAINER_ENGINE} login --username AWS --password-stdin "${REGISTRY}"
 
-echo "Building and pushing ${ECR_REPO_URL}:${TAG}..."
+IMAGE="${ECR_REPO_URL}:${TAG}"
+# Both architectures: the demo cluster's t4g nodes are arm64, Auto Mode's
+# built-in node pools are amd64
+PLATFORMS="linux/amd64,linux/arm64"
 
-"${CONTAINER_ENGINE}" build -t "${ECR_REPO_URL}:${TAG}" .
-"${CONTAINER_ENGINE}" push "${ECR_REPO_URL}:${TAG}"
+echo "Building and pushing ${IMAGE} for ${PLATFORMS}..."
+
+if [ "${CONTAINER_ENGINE}" = docker ]; then
+  docker buildx build --platform "${PLATFORMS}" -t "${IMAGE}" --push .
+else
+  podman build --platform "${PLATFORMS}" --manifest "${IMAGE}" .
+  podman manifest push --all "${IMAGE}" "docker://${IMAGE}"
+fi
 
 echo "Updating kubeconfig via aws cmd..."
 aws eks update-kubeconfig --region us-east-1 --name "${CLUSTER_NAME}"

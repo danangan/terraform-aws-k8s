@@ -1,0 +1,4 @@
+apiVersion: v2
+name: auto-mode-config
+description: What EKS Auto Mode doesn't create itself - an IngressClass, a default StorageClass and a GPU node pool
+version: 0.1.0

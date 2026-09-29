@@ -5,16 +5,15 @@
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![Helm](https://img.shields.io/badge/Helm-0F1689?style=flat&logo=helm&logoColor=white)](https://helm.sh/)
 
-This reusable Terraform module handles everything needed to stand up a production-ready Kubernetes cluster on AWS EKS:
+This reusable Terraform module handles everything needed to stand up a Kubernetes cluster on AWS EKS:
 
-- A VPC (public + private subnets across multiple AZs, Internet & NAT gateway`)
+- Complete network (VPC, public + private subnets across multiple AZs, Internet & NAT gateway)
 - An EKS cluster with a CPU node group and a GPU node group
 - An ECR repository
-- The AWS Load Balancer Controller, so `Ingress` resources with `ingressClassName: alb` provision an ALB out of the box
-- The EBS CSI driver, with gp3 as the default StorageClass for PersistentVolumeClaims
-- Optionally, the [EFS CSI driver](#efs-storage), for volumes many pods can share
-- Optionally, [Cilium](#cilium) as the CNI instead of the VPC CNI and kube-proxy
-- Optionally, [EKS Auto Mode](#eks-auto-mode) instead of the node groups and controller above, so EKS manages the nodes, ingress and storage itself
+- The AWS Load Balancer Controller
+- The EBS & EFS CSI driver for workload volume (EFS driver is optional)
+- (Optional) [Cilium](#cilium) as the CNI instead of the VPC CNI and kube-proxy
+- (Optional) [EKS Auto Mode](#eks-auto-mode) instead of the node groups and controller above, so EKS manages the nodes, ingress and storage itself
 
 This module is published on the public Terraform Registry as [`danangan/k8s/aws`](https://registry.terraform.io/modules/danangan/k8s/aws/latest).
 
@@ -24,7 +23,6 @@ Point it at your AWS account and you'll have a cluster ready for your containeri
 
 - [Requirements](#requirements)
 - [Example usage](#example-usage)
-- [The bootstrap catch](#the-bootstrap-catch)
 - [Deploying pods into the GPU nodes](#deploying-pods-into-the-gpu-nodes)
 - [Add-ons](#add-ons)
 - [EFS storage](#efs-storage)
@@ -65,83 +63,11 @@ provider "helm" {
   }
 }
 
-module "platform" {
+module "k8s_cluster" {
   source  = "danangan/k8s/aws"
   version = "~> 1.0"
 
-  cluster_name = "my-other-project"
-}
-```
-
-## The bootstrap catch
-
-**Warning:** this module needs to be applied twice on a brand new deployment. The first run will always fail - this is expected.
-
-The reason is that the `helm` provider depends on the cluster it's installing into, so the first apply fails while provisioning the ingress controller: authentication fails because the provider is configured before the cluster it needs actually exists, and providers can't take a `depends_on`. The second apply succeeds, since the cluster is already in state by then.
-
-This doesn't apply with `enable_auto_mode = true`: the ingress controller isn't installed then (Auto Mode has its own), so nothing goes through the `helm` provider.
-
-If you'd rather avoid this, compose your own resources from the sub-modules in `modules/` across two separate root modules instead of one. For example, define your AWS resources in an `aws/` folder as its own root module, and the ingress in a separate `k8s/` folder as its own root module:
-
-In `aws/main.tf`:
-```hcl
-module "network" {
-  source  = "danangan/k8s/aws//modules/network"
-  version = "~> 1.0"
-
-  cluster_name = "my-cluster"
-}
-
-module "eks" {
-  source  = "danangan/k8s/aws//modules/eks"
-  version = "~> 1.0"
-
-  cluster_name = "my-cluster"
-
-  vpc_id     = module.network.vpc_id
-  subnet_ids = module.network.private_subnets
-}
-
-module "storage" {
-  source  = "danangan/k8s/aws//modules/storage"
-  version = "~> 1.0"
-
-  cluster_name       = module.eks.cluster_name
-  kubernetes_version = "1.33"
-
-  depends_on = [module.eks] # the add-on needs the nodes up
-}
-
-# Optional - see "EFS storage" below
-module "efs" {
-  source  = "danangan/k8s/aws//modules/efs"
-  version = "~> 1.0"
-
-  cluster_name       = module.eks.cluster_name
-  kubernetes_version = "1.33"
-
-  vpc_id     = module.network.vpc_id
-  subnet_ids = module.network.private_subnets
-
-  depends_on = [module.eks] # the add-on needs the nodes up
-}
-
-module "ecr" {
-  source  = "danangan/k8s/aws//modules/ecr"
-  version = "~> 1.0"
-
-  repository_name = "my-cluster-repo"
-}
-```
-
-In `k8s/main.tf`:
-```hcl
-module "alb_controller" {
-  source  = "danangan/k8s/aws//modules/alb-controller"
-  version = "~> 1.0"
-
-  cluster_name = "my-cluster"
-  vpc_id       = var.vpc_id # the `aws` root module's `network.vpc_id` output, passed in by hand or via remote state
+  cluster_name = "my-k8s-cluster"
 }
 ```
 
@@ -158,18 +84,19 @@ tolerations:
 
 You can override this configuration in the module with `gpu_node_taints` variable.
 
-With `enable_auto_mode = true` there's no GPU node group - apply [`examples/demo-k8s-cluster-auto/auto-mode/gpu-node-pool.yaml`](examples/demo-k8s-cluster-auto/auto-mode/gpu-node-pool.yaml) instead (see [EKS Auto Mode](#eks-auto-mode)), which uses the same taint. GPU pods also need to request `nvidia.com/gpu` in their resources: that's what makes Auto Mode launch a GPU node for them.
+With `enable_auto_mode = true` there's no GPU node group - the module creates a GPU `NodePool` from the same `gpu_*` settings (see [EKS Auto Mode](#eks-auto-mode)), which uses the same taint. GPU pods also need to request `nvidia.com/gpu` in their resources: that's what makes Auto Mode launch a GPU node for them.
 
 ## Add-ons
 
 On the managed node groups (the default), the module installs these EKS add-ons:
 
-- `coredns` and `eks-pod-identity-agent`, plus `kube-proxy` and `vpc-cni` unless [Cilium](#cilium) replaces them
-- `aws-ebs-csi-driver`, through the [`storage`](modules/storage/) sub-module, which follows [AWS's EBS CSI driver guide](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html): an IAM role with `AmazonEBSCSIDriverPolicyV2` through EKS Pod Identity, then the add-on itself. It also creates `ebs-csi-default-sc`, the cluster's default StorageClass, so PersistentVolumeClaims get gp3 EBS volumes. EKS's own `gp2` StorageClass is still there, but isn't the default.
+- `coredns`
+- `eks-pod-identity-agent`
+- `kube-proxy` and `vpc-cni` (unless [Cilium](#cilium) replaces them)
+- `aws-ebs-csi-driver`
+- `aws-ebs-csi-driver` (optiona; see [EFS storage](#efs-storage))
 
-The EFS CSI driver is opt-in - see [EFS storage](#efs-storage).
-
-Add more with `extra_addons`, keyed by add-on name. Each entry takes the same settings as an `addons` entry in [terraform-aws-modules/eks](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest), such as `addon_version`, `configuration_values` or `pod_identity_association`:
+Add more with `extra_addons`, keyed by add-on name. Each entry takes the same settings as an `addons` entry in [terraform-aws-modules/eks](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest). Example:
 
 ```hcl
 module "platform" {
@@ -185,11 +112,11 @@ module "platform" {
 }
 ```
 
-An entry named after one of the default add-ons above replaces that add-on's settings entirely - e.g. overriding `vpc-cni` drops its `before_compute = true`, so set it again. `extra_addons` is ignored with `enable_auto_mode = true`.
+To override the default add-ons setting you can do that by providing that addon setting via this property. 
 
 ## EFS storage
 
-An EBS volume attaches to one node at a time. An [Amazon EFS](https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html) file system can be mounted by many pods at once, across nodes and AZs (`ReadWriteMany`), and grows as you write to it. Set `enable_efs_csi_driver = true` to install the driver for it:
+To enable EFS storage, set `enable_efs_csi_driver = true` to install the driver for it:
 
 ```hcl
 module "platform" {
@@ -202,14 +129,12 @@ module "platform" {
 }
 ```
 
-The module then creates the [`efs`](modules/efs/) sub-module's resources, which follow [AWS's EFS CSI driver guide](https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html):
+To use EFS in your workload you need to:
 
-1. An IAM role with `AmazonEFSCSIDriverPolicy`, granted through EKS Pod Identity
-2. The `aws-efs-csi-driver` EKS add-on
-
-It's off by default. It works with or without [EKS Auto Mode](#eks-auto-mode), which doesn't have EFS support built in.
-
-The module doesn't create a file system ([`examples/demo-k8s-cluster/efs.tf`](examples/demo-k8s-cluster/efs.tf) shows one way to). Create one with a mount target in each of the cluster's private subnets, behind a security group that allows NFS (TCP 2049) in from the VPC (see the driver's [file system guide](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/docs/efs-create-filesystem.md)). Then create a StorageClass for it with `kubectl`, since the EFS add-on can't create one the way the EBS add-on does:
+- Provision the file system itself
+- Provision the mount target
+- Provision security group that allows NFS in/out from the VPC
+- Create storage class (via kubectl or via terraform). Example via kubectl:
 
 ```
 kubectl apply -f - <<EOF
@@ -225,7 +150,7 @@ parameters:
 EOF
 ```
 
-This uses [dynamic provisioning](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/efs/dynamic_provisioning/README.md): each PersistentVolumeClaim gets its own EFS access point, a directory on the file system that only that claim's pods can see. `ebs-csi-default-sc` stays the default StorageClass, so claims have to name `efs-sc`:
+- Then you can use the EFS volume using PVC as follow:
 
 ```
 apiVersion: v1
@@ -241,34 +166,30 @@ spec:
       storage: 5Gi # required by Kubernetes, but EFS doesn't enforce a size
 ```
 
-Before setting `enable_efs_csi_driver` back to `false`, delete any claims that use `efs-sc`, while the driver is still there to clean up their access points.
+See this article for more detailed guideline: (https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/docs/efs-create-filesystem.md)
 
 ## Cilium
 
-Set `enable_cilium = true` to replace the VPC CNI and kube-proxy with [Cilium](https://docs.cilium.io/en/stable/overview/intro/). Pods still get VPC IPs ([ENI mode](https://docs.cilium.io/en/stable/network/concepts/ipam/eni/)), Services are routed with eBPF instead of iptables, and pod traffic between nodes is encrypted with [WireGuard](https://docs.cilium.io/en/stable/security/network/encryption-wireguard/). Not available with Auto Mode. Only for new clusters - switching one that runs the VPC CNI isn't handled. Details in [`modules/cilium`](modules/cilium/README.md).
+Set `enable_cilium = true` to replace the VPC CNI and kube-proxy with [Cilium](https://docs.cilium.io/en/stable/overview/intro/). With this option enabled:
+- Pods still get VPC IPs ([ENI mode](https://docs.cilium.io/en/stable/network/concepts/ipam/eni/))
+- Services are routed with eBPF instead of iptables
+- pod traffic between nodes is encrypted with [WireGuard](https://docs.cilium.io/en/stable/security/network/encryption-wireguard/).
+
+> Note: Not available with Auto Mode. Only for new clusters - switching one that runs the VPC CNI isn't handled. Details in [`modules/cilium`](modules/cilium/README.md).
 
 ## EKS Auto Mode
 
 Set `enable_auto_mode = true` to run the cluster on [EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/automode.html): EKS launches, patches and removes the EC2 nodes itself as pods need them, and runs networking, EBS storage and the ALB controller for you. The module then skips the node groups, add-ons and ALB controller.
 
-Nodes come from node pools. EKS enables two built-in ones, `general-purpose` and `system`, but they only launch amd64 C/M/R instances - for anything else, add your own `NodePool` with `kubectl` once the cluster is up. The Auto Mode example has two to start from:
+Nodes come from node pools. EKS enables two built-in ones, `general-purpose` and `system`, but they only launch amd64 C/M/R instances - so build amd64 (or multi-platform) images, and add your own `NodePool` for anything else, e.g. GPUs.
 
-- [`graviton-node-pool.yaml`](examples/demo-k8s-cluster-auto/auto-mode/graviton-node-pool.yaml) - arm64 instances, e.g. for images built on an Apple Silicon Mac
-- [`gpu-node-pool.yaml`](examples/demo-k8s-cluster-auto/auto-mode/gpu-node-pool.yaml) - `g4dn.xlarge` GPU nodes, tainted like the `gpu` node group
-
-```
-kubectl apply -f examples/demo-k8s-cluster-auto/auto-mode/
-```
-
-That folder also has the IngressClass and StorageClass Auto Mode needs - see the [examples README](examples/README.md#eks-auto-mode-demo-k8s-cluster-auto).
+Auto Mode doesn't create an IngressClass, a default StorageClass or a GPU `NodePool`, so the module installs them - see [`modules/auto-mode`](modules/auto-mode/README.md).
 
 ## Project structure
 
 ```
 (repo root)/             # The module itself
 modules/                 # The sub-modules it's composed of, usable on their own
-                         # if you split the bootstrap catch across two root
-                         # modules (see "The bootstrap catch" above)
   ...
 examples/                # Deployable example clusters and a demo app - see
                          # "Examples" below
@@ -276,4 +197,6 @@ examples/                # Deployable example clusters and a demo app - see
 
 ## Examples
 
-[`examples/`](examples/) has two deployable clusters - one on managed node groups, one on EKS Auto Mode - and a demo app to deploy onto either. The [examples README](examples/README.md) walks through provisioning them, deploying the app and tearing everything down.
+- [Demo cluster](examples/demo-k8s-cluster/README.md)
+- [Demo cluster (auto mode)](examples/demo-k8s-cluster-auto/README.md)
+- [Demo app](examples/demo-app/README.md)

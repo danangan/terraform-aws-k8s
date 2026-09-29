@@ -1,5 +1,3 @@
-# Auto Mode doesn't create a StorageClass either. This makes encrypted gp3
-# volumes the default for PersistentVolumeClaims that don't name a class.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -8,6 +6,7 @@ metadata:
     storageclass.kubernetes.io/is-default-class: "true"
 provisioner: ebs.csi.eks.amazonaws.com
 volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
 allowedTopologies:
   - matchLabelExpressions:
       - key: eks.amazonaws.com/compute-type

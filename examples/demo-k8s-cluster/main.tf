@@ -29,8 +29,8 @@ provider "aws" {
 
 provider "helm" {
   kubernetes = {
-    host                   = module.platform.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.platform.cluster_certificate_authority_data)
+    host                   = module.cluster.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.cluster.cluster_certificate_authority_data)
 
     exec = {
       api_version = "client.authentication.k8s.io/v1"
@@ -42,8 +42,8 @@ provider "helm" {
 
 # For the efs-sc StorageClass in efs.tf
 provider "kubernetes" {
-  host                   = module.platform.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.platform.cluster_certificate_authority_data)
+  host                   = module.cluster.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.cluster.cluster_certificate_authority_data)
 
   exec {
     api_version = "client.authentication.k8s.io/v1"
@@ -52,7 +52,7 @@ provider "kubernetes" {
   }
 }
 
-module "platform" {
+module "cluster" {
   source = "../.."
 
   aws_region   = local.region
@@ -78,10 +78,10 @@ module "platform" {
 }
 
 output ecr_repository_url {
-  value       = module.platform.ecr_repository_url
+  value       = module.cluster.ecr_repository_url
 }
 
 
 output "cluster_name" {
-  value = module.platform.cluster_name
+  value = module.cluster.cluster_name
 }
