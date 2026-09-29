@@ -46,6 +46,8 @@ module "eks" {
   gpu_node_group_max_size     = var.gpu_node_group_max_size
   gpu_node_group_desired_size = var.gpu_node_group_desired_size
   gpu_node_taints             = var.gpu_node_taints
+  gpu_node_disk_size          = var.gpu_node_disk_size
+  cpu_node_disk_size          = var.cpu_node_disk_size
 
   # This is a hack so that the node group creation would wait for the cillium installation
   # Basically creating a dependency between the node group resource and label resource from cillium module

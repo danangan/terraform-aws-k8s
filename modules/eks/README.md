@@ -19,6 +19,7 @@ With `enable_auto_mode = true`, the cluster runs on EKS Auto Mode instead: no no
 | `subnet_ids` | IDs of the (private) subnets for the cluster and its node groups | - |
 | `cpu_instance_type` | Instance type for the CPU-only node group | `t4g.small` |
 | `cpu_node_group_min_size` / `max_size` / `desired_size` | CPU node group sizing | `0` / `2` / `2` |
+| `cpu_node_disk_size` | Root volume size in GiB for CPU nodes | `20` |
 | `gpu_instance_type` | Instance type for the GPU-enabled node group | `g4dn.xlarge` |
 | `gpu_node_group_min_size` / `max_size` / `desired_size` | GPU node group sizing | `0` / `1` / `1` |
 | `gpu_node_taints` | Taints applied to the GPU node group, keyed by an arbitrary map key | `{ nvidia_gpu = { key = "nvidia.com/gpu", value = "true", effect = "NO_SCHEDULE" } }` |

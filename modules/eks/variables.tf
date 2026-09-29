@@ -111,6 +111,18 @@ variable "gpu_node_group_desired_size" {
   default = 1
 }
 
+variable "cpu_node_disk_size" {
+  description = "Root volume size in GiB for CPU nodes"
+  type        = number
+  default     = 20
+}
+
+variable "gpu_node_disk_size" {
+  description = "Root volume size in GiB for GPU nodes"
+  type        = number
+  default     = 50
+}
+
 variable "gpu_node_taints" {
   type = map(any)
   default = {

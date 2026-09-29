@@ -50,6 +50,17 @@ module "eks" {
       desired_size = var.cpu_node_group_desired_size
 
       labels = var.node_labels
+
+      block_device_mappings = {
+        root = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size = var.cpu_node_disk_size
+            volume_type = "gp3"
+            encrypted   = true
+          }
+        }
+      }
     },
     gpu = {
       ami_type       = "AL2023_x86_64_NVIDIA"
@@ -61,6 +72,17 @@ module "eks" {
 
       labels = var.node_labels
       taints = var.gpu_node_taints
+
+      block_device_mappings = {
+        root = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size = var.gpu_node_disk_size
+            volume_type = "gp3"
+            encrypted   = true
+          }
+        }
+      }
     }
   }
 }
