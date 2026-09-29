@@ -14,4 +14,4 @@ The root module installs it when `enable_auto_mode = true`. Needs the `helm` pro
 |---|---|---|
 | `gpu_instance_type` | Instance type for the GPU node pool | `g4dn.xlarge` |
 | `gpu_limit` | Maximum GPUs across the GPU node pool's nodes | `1` |
-| `gpu_node_taints` | Taints for the GPU node pool, in the same format as the `eks` sub-module's `gpu_node_taints` | `gpu-workload=true:NoSchedule` |
+| `gpu_node_taints` | Taints for the GPU node pool, in the same format as the `eks` sub-module's `gpu_node_taints` | `nvidia.com/gpu=true:NoSchedule` |

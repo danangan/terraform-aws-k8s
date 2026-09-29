@@ -1,6 +1,6 @@
 # eks
 
-An EKS cluster (via `terraform-aws-modules/eks/aws`) with a Graviton (ARM) CPU node group and a GPU node group (tainted `gpu-workload=true:NoSchedule`, so only pods that tolerate it land there). AMI architecture for the CPU group is picked automatically from the instance type.
+An EKS cluster (via `terraform-aws-modules/eks/aws`) with a Graviton (ARM) CPU node group and a GPU node group (tainted `nvidia.com/gpu=true:NoSchedule`, so only pods that tolerate it land there). AMI architecture for the CPU group is picked automatically from the instance type.
 
 Installs the add-ons in `addons` - by default `coredns`, `kube-proxy`, `vpc-cni` and `eks-pod-identity-agent`. The EBS CSI driver is in the separate [`storage`](../storage/) sub-module.
 
@@ -21,7 +21,7 @@ With `enable_auto_mode = true`, the cluster runs on EKS Auto Mode instead: no no
 | `cpu_node_group_min_size` / `max_size` / `desired_size` | CPU node group sizing | `0` / `2` / `2` |
 | `gpu_instance_type` | Instance type for the GPU-enabled node group | `g4dn.xlarge` |
 | `gpu_node_group_min_size` / `max_size` / `desired_size` | GPU node group sizing | `0` / `1` / `1` |
-| `gpu_node_taints` | Taints applied to the GPU node group, keyed by an arbitrary map key | `{ gpu_workload = { key = "gpu-workload", value = "true", effect = "NO_SCHEDULE" } }` |
+| `gpu_node_taints` | Taints applied to the GPU node group, keyed by an arbitrary map key | `{ nvidia_gpu = { key = "nvidia.com/gpu", value = "true", effect = "NO_SCHEDULE" } }` |
 
 ## Outputs
 

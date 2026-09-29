@@ -114,8 +114,8 @@ variable "gpu_node_group_desired_size" {
 variable "gpu_node_taints" {
   type = map(any)
   default = {
-    gpu_workload = {
-      key    = "gpu-workload"
+    nvidia_gpu = {
+      key    = "nvidia.com/gpu"
       value  = "true"
       effect = "NO_SCHEDULE"
     }

@@ -14,8 +14,8 @@ variable "gpu_node_taints" {
   description = "Taints for the GPU node pool, in the same format as the eks sub-module's gpu_node_taints"
   type        = map(any)
   default = {
-    gpu_workload = {
-      key    = "gpu-workload"
+    nvidia_gpu = {
+      key    = "nvidia.com/gpu"
       value  = "true"
       effect = "NO_SCHEDULE"
     }

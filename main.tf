@@ -106,6 +106,17 @@ module "alb_controller" {
   depends_on = [module.eks]
 }
 
+module "nvidia_device_plugin" {
+  source = "./modules/nvidia-device-plugin"
+
+  # Auto Mode's GPU nodes come with the device plugin
+  count = var.enable_auto_mode ? 0 : 1
+
+  gpu_instance_type = var.gpu_instance_type
+
+  depends_on = [module.eks]
+}
+
 module "auto_mode" {
   source = "./modules/auto-mode"
 

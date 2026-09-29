@@ -76,13 +76,15 @@ module "k8s_cluster" {
 GPU nodes are expensive, so we should only use them sparingly and only deploy relevant workloads onto that node group. To do so, we can leverage Kubernetes' [taints and tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) feature. To deploy pods into the GPU nodes, you'd need to provision your workload with the following tolerations:
 ```
 tolerations:
-- key: "gpu-workload"
+- key: "nvidia.com/gpu"
   operator: "Equal"
   value: "true"
   effect: "NoSchedule"
 ```
 
 You can override this configuration in the module with `gpu_node_taints` variable.
+
+The GPU nodes' AMI doesn't include the NVIDIA device plugin, so the module installs it ([`modules/nvidia-device-plugin`](modules/nvidia-device-plugin/README.md)). Pods then request GPUs with `resources.limits: { nvidia.com/gpu: 1 }`.
 
 With `enable_auto_mode = true` there's no GPU node group - the module creates a GPU `NodePool` from the same `gpu_*` settings (see [EKS Auto Mode](#eks-auto-mode)), which uses the same taint. GPU pods also need to request `nvidia.com/gpu` in their resources: that's what makes Auto Mode launch a GPU node for them.
 
